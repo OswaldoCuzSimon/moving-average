@@ -1,3 +1,4 @@
+import argparse
 import os
 import boto3
 from pyspark.sql import SparkSession
@@ -76,6 +77,16 @@ def calculate_moving_average(df, column, ticker, n, moving_average_column_name):
     return df
 
 
+def args_parser():
+
+    parser = argparse.ArgumentParser(description='Calculate moving average for a ticker')
+    parser.add_argument('--input_file_location', dest='input_file_location', required=True, help='Input file location')
+    parser.add_argument('--output_file_location', dest='output_file_location', required=True, help='Output file location')
+    parser.add_argument('--ticker', dest='ticker', required=True, help='Ticker to calculate moving average')
+    args = parser.parse_args()
+    return args
+
+
 custom_schema = StructType([
     StructField('ticker', StringType(), True),
     StructField('open', DoubleType(), True),
@@ -86,14 +97,19 @@ custom_schema = StructType([
     StructField('volume', IntegerType(), True),
     StructField('date', DateType(), True)
 ])
+# --input_file_location s3a://kueski-challenge-data-engineer/historical_stock_prices.csv.gz --output_file_location kueski-challenge-data-engineer/GOOGL --ticker 'GOOGL'
+args = args_parser()
+input_file_location = args.input_file_location
+output_file_location = args.output_file_location
+ticker = args.ticker
+#input_file_location = "historical_stock_prices.csv.gz"
+#input_file_location = "s3a://kueski-challenge-data-engineer/historical_stock_prices.csv.gz"
+#output_file_location = "s3a://kueski-challenge-data-engineer/GOOGL"
+#ticker = 'GOOGL'
+df = read_csv(input_file_location, custom_schema, delimiter=",")
 
 
-file_location = "historical_stock_prices.csv.gz"
-file_location = "s3a://kueski-challenge-data-engineer/historical_stock_prices.csv.gz"
-df = read_csv(file_location, custom_schema, delimiter=",")
-
-ticker = 'GOOGL'
 df = df.drop_duplicates()
 df = calculate_moving_average(df, 'close', ticker, 7, 'moving_average_7')
 df.count()
-df.repartition(1).write.option("header", "true").csv("{}".format(ticker))
+df.repartition(1).write.option("header", "true").csv(output_file_location)
