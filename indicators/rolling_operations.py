@@ -1,3 +1,5 @@
+import os
+import boto3
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, when, row_number
 from pyspark.sql.types import StructType, StringType, StructField, DoubleType, IntegerType, DateType
@@ -6,7 +8,10 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 load_dotenv()
-spark = SparkSession.builder.appName("name").getOrCreate()
+spark = (SparkSession.builder.master("local[*]").appName("moving_average")
+         .config('spark.jars.packages', 'org.apache.hadoop:hadoop-aws:3.1.2')
+         .config("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.profile.ProfileCredentialsProvider")
+         .getOrCreate())
 
 
 def read_csv(file_location, customSchema, delimiter=","):
@@ -70,6 +75,7 @@ def calculate_moving_average(df, column, ticker, n, moving_average_column_name):
 
     return df
 
+
 custom_schema = StructType([
     StructField('ticker', StringType(), True),
     StructField('open', DoubleType(), True),
@@ -83,6 +89,7 @@ custom_schema = StructType([
 
 
 file_location = "historical_stock_prices.csv.gz"
+file_location = "s3a://kueski-challenge-data-engineer/historical_stock_prices.csv.gz"
 df = read_csv(file_location, custom_schema, delimiter=",")
 
 ticker = 'GOOGL'
