@@ -9,31 +9,35 @@ load_dotenv()
 spark = SparkSession.builder.appName("name").getOrCreate()
 
 
-file_type = 'csv'
-file_location = "historical_stock_prices.csv.gz"
-infer_schema = "true"
-first_row_is_header = "true"
-delimiter = ","
-customSchema = StructType([
-    StructField('ticker', StringType(), True),
-    StructField('open', DoubleType(), True),
-    StructField('close', DoubleType(), True),
-    StructField('adj_close', DoubleType(), False),
-    StructField('low', DoubleType(), True),
-    StructField('high', DoubleType(), True),
-    StructField('volume', IntegerType(), True),
-    StructField('date', DateType(), True)])
+def read_csv(file_location, customSchema, delimiter=","):
+    """
+    Read csv and load into DataFrame
+    Parameters
+    ----------
+    file_location : str
+        Path of a csv to load
+    customSchema : StructType
+        Schema of the dataframe
+    delimiter : str
+        Delimiter of the csv file
 
-df = spark.read.format(file_type) \
-               .option("header", first_row_is_header) \
-               .option("sep", delimiter) \
-               .schema(customSchema) \
-               .load(file_location)
+    Returns
+    -------
+    DataFrame
+        Data frame representation of the csv loaded
+    """
+
+    df = spark.read.format('csv') \
+                   .option("header", "true") \
+                   .option("sep", delimiter) \
+                   .schema(customSchema) \
+                   .load(file_location)
+    return df
 
 
 def calculate_moving_average(df, column, ticker, n, moving_average_column_name):
     """
-
+    Calculate moving average
     Parameters
     ----------
     df : DataFrame
@@ -66,6 +70,20 @@ def calculate_moving_average(df, column, ticker, n, moving_average_column_name):
 
     return df
 
+custom_schema = StructType([
+    StructField('ticker', StringType(), True),
+    StructField('open', DoubleType(), True),
+    StructField('close', DoubleType(), True),
+    StructField('adj_close', DoubleType(), False),
+    StructField('low', DoubleType(), True),
+    StructField('high', DoubleType(), True),
+    StructField('volume', IntegerType(), True),
+    StructField('date', DateType(), True)
+])
+
+
+file_location = "historical_stock_prices.csv.gz"
+df = read_csv(file_location, custom_schema, delimiter=",")
 
 ticker = 'GOOGL'
 df = df.drop_duplicates()
