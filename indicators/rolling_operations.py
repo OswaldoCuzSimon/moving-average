@@ -32,6 +32,26 @@ df = spark.read.format(file_type) \
 
 
 def calculate_moving_average(df, column, ticker, n, moving_average_column_name):
+    """
+
+    Parameters
+    ----------
+    df : DataFrame
+        Data frame with OHLC price data
+    column : str
+        Column name of time serie to apply moving average
+    ticker : str
+        Ticker symbol to calculate moving average
+    n : int
+        Number of periods
+    moving_average_column_name : str
+        Name of the column with the result
+
+    Returns
+    -------
+    DataFrame
+        The dataframe received plus a column named moving_average_column_name with the moving average
+    """
     rolling_function = Window.partitionBy('ticker') \
         .orderBy("date") \
         .rowsBetween(-n, 0)
