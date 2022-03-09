@@ -1,28 +1,19 @@
 import argparse
-import os
-import boto3
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, when, row_number
 from pyspark.sql.types import StructType, StringType, StructField, DoubleType, IntegerType, DateType
-from dotenv import load_dotenv
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-load_dotenv()
-spark = (SparkSession.builder.master("local[*]").appName("moving_average")
-         .config('spark.jars.packages', 'org.apache.hadoop:hadoop-aws:3.1.2')
-         .config("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.profile.ProfileCredentialsProvider")
-         .getOrCreate())
 
-
-def read_csv(file_location, customSchema, delimiter=","):
+def read_csv(spark, file_location, custom_schema, delimiter=","):
     """
     Read csv and load into DataFrame
     Parameters
     ----------
     file_location : str
         Path of a csv to load
-    customSchema : StructType
+    custom_schema : StructType
         Schema of the dataframe
     delimiter : str
         Delimiter of the csv file
@@ -36,7 +27,7 @@ def read_csv(file_location, customSchema, delimiter=","):
     df = spark.read.format('csv') \
                    .option("header", "true") \
                    .option("sep", delimiter) \
-                   .schema(customSchema) \
+                   .schema(custom_schema) \
                    .load(file_location)
     return df
 
@@ -87,29 +78,29 @@ def args_parser():
     return args
 
 
-custom_schema = StructType([
-    StructField('ticker', StringType(), True),
-    StructField('open', DoubleType(), True),
-    StructField('close', DoubleType(), True),
-    StructField('adj_close', DoubleType(), False),
-    StructField('low', DoubleType(), True),
-    StructField('high', DoubleType(), True),
-    StructField('volume', IntegerType(), True),
-    StructField('date', DateType(), True)
-])
-# --input_file_location s3a://kueski-challenge-data-engineer/historical_stock_prices.csv.gz --output_file_location kueski-challenge-data-engineer/GOOGL --ticker 'GOOGL'
-args = args_parser()
-input_file_location = args.input_file_location
-output_file_location = args.output_file_location
-ticker = args.ticker
-#input_file_location = "historical_stock_prices.csv.gz"
-#input_file_location = "s3a://kueski-challenge-data-engineer/historical_stock_prices.csv.gz"
-#output_file_location = "s3a://kueski-challenge-data-engineer/GOOGL"
-#ticker = 'GOOGL'
-df = read_csv(input_file_location, custom_schema, delimiter=",")
+if __name__ == '__main__':
+    spark = (SparkSession.builder.master("local[*]").appName("moving_average")
+             .config('spark.jars.packages', 'org.apache.hadoop:hadoop-aws:3.1.2')
+             .config("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.profile.ProfileCredentialsProvider")
+             .getOrCreate())
+    custom_schema = StructType([
+        StructField('ticker', StringType(), True),
+        StructField('open', DoubleType(), True),
+        StructField('close', DoubleType(), True),
+        StructField('adj_close', DoubleType(), False),
+        StructField('low', DoubleType(), True),
+        StructField('high', DoubleType(), True),
+        StructField('volume', IntegerType(), True),
+        StructField('date', DateType(), True)
+    ])
+    # --input_file_location s3a://kueski-challenge-data-engineer/historical_stock_prices.csv.gz --output_file_location kueski-challenge-data-engineer/GOOGL --ticker GOOGL
+    args = args_parser()
+    input_file_location = args.input_file_location
+    output_file_location = args.output_file_location
+    ticker = args.ticker
+    df = read_csv(spark, input_file_location, custom_schema, delimiter=",")
 
-
-df = df.drop_duplicates()
-df = calculate_moving_average(df, 'close', ticker, 7, 'moving_average_7')
-df.count()
-df.repartition(1).write.option("header", "true").csv(output_file_location)
+    df = df.drop_duplicates()
+    df = calculate_moving_average(df, 'close', ticker, 7, 'moving_average_7')
+    df.count()
+    df.repartition(1).write.option("header", "true").csv(output_file_location)
